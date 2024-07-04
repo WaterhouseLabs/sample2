@@ -1,0 +1,71 @@
+{{- range .Values.apps }}
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: {{ $.Release.Name }}-{{ .name }}
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/target: "10"
+        autoscaling.knative.dev/scale-to-zero-pod-retention-period: "3m"
+        {{ if .stateful -}}
+        autoscaling.knative.dev/min-scale: {{ .stateful.replicas }}
+        {{- end }}
+        autoscaling.knative.dev/max-scale: "1"
+      name: {{ $.Release.Name }}-{{ .name }}-{{ $.Values.metadata.commitHash }}
+    spec:
+      containers:
+      - envFrom:
+        - configMapRef:
+            name: {{ $.Release.Name }}-config
+        image: {{ .image.repository }}/{{ .image.name }}:{{ .image.tag }}
+        imagePullPolicy: Always
+        resources: {{- toYaml .resources | nindent 12 }}
+        ports:
+        - containerPort: {{ .image.port }}
+        securityContext:
+          runAsUser: 1000
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          seccompProfile:
+            type: RuntimeDefault
+        volumeMounts:
+        - mountPath: "/var/secrets"
+          name: app-secret
+          readOnly: true
+      volumes:
+      - name: app-secret
+        secret:
+          secretName: {{ $.Release.Name }}-secret
+{{ if .ingress }}
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: {{ $.Release.Name }}-{{ .name }}-vs
+spec:
+  gateways:
+  - knative-serving/knative-ingress-gateway
+  - knative-serving/knative-local-gateway
+  hosts:
+  - {{ $.Values.metadata.hostName }}
+  http:
+  - match:
+    - uri:
+        prefix: '/{{ $.Values.metadata.engagementId }}/{{ $.Release.Name }}-{{ .name }}/'
+    rewrite:
+        uri: {{ .rewrite.uri }}
+    route:
+      - destination:
+          host: {{ $.Release.Name }}-{{ .name }}-{{ $.Values.metadata.commitHash }}.{{ $.Release.Namespace }}.svc.cluster.local
+          port:
+            number: 80
+        headers:
+          request:
+            set:
+              Knative-Serving-Namespace: {{ $.Release.Namespace }}
+              Knative-Serving-Revision: {{ $.Release.Name }}-{{ .name }}-{{ $.Values.metadata.commitHash }}
+---
+{{- end -}}
+{{- end -}}

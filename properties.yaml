@@ -1,0 +1,7 @@
+---
+# Application as a Service global proporties
+ci_checks:
+  enabled: False
+  veracode: False
+helm_lint:
+  enabled: True

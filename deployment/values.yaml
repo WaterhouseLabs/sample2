@@ -1,0 +1,113 @@
+# Multiple apps and images are supported, each will have its own independent knativeService and virtualService
+apps:
+## Default Build image case
+- name: backend
+  ingress: enabled
+  image:
+    build: true  # If false image will not be built (it would require a public image)
+    name: streamlit
+    path: default # ./src
+    port: 8080
+    repository: default  # DOCKER_DEV: w00043-pwc-us-aaas-docker-local.artifacts-west.pwc.com
+    tag: default  # if 'default': commit hash is used
+    experimentalBuild: true
+  # List of build arguments to be used in the /{src_path}/Dockerfile
+  #  build_args:
+  #    ARG_NAME_1: arg_value_1
+  #    ARTIFACTORY_PULL: wrappingReplaced  # Uncomment this if any secret is needed in your dockerfile.
+                                           # IMPORTANT: this secret must be defined through the Secret Management UI, alongisde the rest of app secrets.
+  # Stateful deployment configuration, if enabled it will ensure your deployment always have the minimun specified number of replicas
+  # Beware this requires a valid ApptioId in your workbench workspace
+  # stateful:
+  #   replicas: 1
+  rewrite:
+    uri: /  # This is the default behavior. Do not change this unless you know what to expect
+  resources:
+    requests:
+      cpu: 250m
+      memory: 250M
+    limits:
+      cpu: 500m
+      memory: 500M
+
+# URI entry point to be used for launching the application, do not include hostname. Max length is 63 character after rendering
+entrypoint: "https://{{ .Values.metadata.hostName }}/{{ .Values.metadata.engagementId }}/{{ $.Release.Name }}-backend/"
+
+## In case that you want to deploy more applications, uncomment and modify the following section as needed.
+## External images can be used and will not be built. HOWEVER, the repository must be Public
+# - name: frontend
+#   image:
+#     build: false
+#     name: frontend
+#     path: /src/frontend
+#     port: 8080
+#     repository: userArtifactoryURI
+#     tag: v1.0
+#   List of build arguments to be used in the /{src_path}/Dockerfile
+#    build_args:
+#      ARG_NAME_1: arg_value_1
+#      ARTIFACTORY_PULL: wrappingReplaced  # Uncomment this if any secret is needed in your dockerfile.
+                                           # IMPORTANT: this secret must be defined through the Secret Management UI, alongisde the rest of app secrets.
+#   Stateful deployment configuration, if enabled it will ensure your deployment always have the minimun specified number of replicas
+#   Beware this requires a valid ApptioId in your workbench workspace
+#   stateful:
+#     replicas: 1
+#   rewrite:
+#     uri: /  # This is the default behavior. Do not change this unless you know what to expect
+#   resources:
+#     requests:
+#       cpu: 250m
+#       memory: 250M
+#     limits:
+#       cpu: 500m
+#       memory: 500M
+
+## Additional image/app in a non-default (not ./src) path
+# - name: standby_backend
+#   image:
+#     build: true
+#     name: standy-app
+#     path: /src/standby_backend
+#     port: 8080
+#     repository: default # DOCKER_DEV: w00043-pwc-us-aaas-docker-local.artifacts-west.pwc.com
+#     tag: standby
+# List of build arguments to be used in the /{src_path}/Dockerfile
+#    build_args:
+#      ARG_NAME_1: arg_value_1
+#      ARTIFACTORY_PULL: wrappingReplaced  # Uncomment this if any secret is needed in your dockerfile.
+                                           # IMPORTANT: this secret must be defined through the Secret Management UI, alongisde the rest of app secrets.
+#   Stateful deployment configuration, if enabled it will ensure your deployment always have the minimun specified number of replicas
+#   Beware this requires a valid ApptioId in your workbench workspace
+#   stateful:
+#     replicas: 1
+#   rewrite:
+#     uri: /  # This is the default behavior. Do not change this unless you know what to expect
+#   resources:
+#     limits:
+#       cpu: 500m
+#       memory: 500M
+#     requests:
+#       cpu: 250m
+#       memory: 250M
+
+# Secrets keys must match the ones in your Hashicorp Vault and wrappingReplaced will be replaced in runtime
+secrets:
+  SAS_TOKEN: wrappingReplaced
+  STORAGE_ACCOUNT_NAME: wrappingReplaced
+
+# These secrets will be injected into your enabled dependencies from your helm charts under the deployment/charts folder.
+# Dependencies secrets will be injected in runtime
+dependencySecrets: []
+
+# runtimeReplaced values will be replaced in runtime, and only will be available on deployment from the system.
+metadata:
+  engagementId: runtimeReplaced
+  hostName: runtimeReplaced
+  commitHash: runtimeReplaced
+
+# These will be automatically injected in your knative service with the specified value here
+configMap:
+  - key: ENGAGEMENT_ID
+    value: "{{ .Values.metadata.engagementId }}"
+  - key: BACKEND_ROOT_URL
+    value: "https://{{ .Values.metadata.hostName }}/{{ .Values.metadata.engagementId }}/{{ $.Release.Name }}-{{ (index .Values.apps 0).name }}"

@@ -1,0 +1,16 @@
+description: Streamlit application template
+apiVersion: v2
+name: knative-app
+version: 0.0.3
+appVersion: 1.5.0
+home: https://streamlit.io/
+maintainers:
+  - name: Luciano Alvrez
+    email: luciano.alvarez@pwc.com
+sources:
+  - https://github.com/pwc-gx-xlos-caas/streamlit-app
+  - https://github.com/streamlit/streamlit
+keywords:
+  - streamlit
+  - serverless
+  - knative
